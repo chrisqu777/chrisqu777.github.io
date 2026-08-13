@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2026-08-13T11:11:59-07:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Huijie Qu</title><author><name>Huijie Qu</name></author><entry><title type="html">Spark groupBy Keys Must Be Deterministic</title><link href="http://localhost:4000/blog/spark-groupby-deterministic-key/" rel="alternate" type="text/html" title="Spark groupBy Keys Must Be Deterministic" /><published>2026-08-13T00:00:00-07:00</published><updated>2026-08-13T00:00:00-07:00</updated><id>http://localhost:4000/blog/spark-groupby-deterministic-key</id><content type="html" xml:base="http://localhost:4000/blog/spark-groupby-deterministic-key/"><![CDATA[<p>When using <code class="language-plaintext highlighter-rouge">groupBy</code> in Spark, the grouping key must be deterministic. For the same input record, evaluating the key
+again on another executor should produce the same value.</p>
+
+<p>This looks reasonable, but it is not reliable:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">result</span> <span class="k">=</span> <span class="n">df</span>
+  <span class="o">.</span><span class="py">groupBy</span><span class="o">(</span><span class="nf">monotonically_increasing_id</span><span class="o">()</span> <span class="o">%</span> <span class="mi">100</span><span class="o">)</span>
+  <span class="o">.</span><span class="py">count</span><span class="o">()</span>
+</code></pre></div></div>
+
+<p>Initially, you might want to use it to distribute the highly skewed data to executors evenly, however, the result may be
+surprisingly incorrect once an executor needs to rerun.</p>
+
+<h3 id="why-executor-failures-make-this-worse">Why executor failures make this worse</h3>
+
+<p><code class="language-plaintext highlighter-rouge">groupBy</code> usually triggers a shuffle. Spark may calculate a key on one executor and write shuffle data. If that executor
+fails, Spark retries the task and recalculates the partition on another executor.</p>
+
+<p>With a deterministic key, the recalculated record is sent to the same group, so Spark can complete the shuffle and
+aggregation. With a non-deterministic key, the key may change during recomputation. The same record can then be sent to
+a different group.</p>
+
+<p>This can produce unstable aggregates, split records across multiple keys, inconsistent retry results, and data loss or
+duplication in workflows that depend on aggregation, deduplication, or joins.</p>
+
+<p>Spark can retry a failed task, but it cannot infer which random key was produced by the previous attempt. Retry is
+therefore not enough to make a non-deterministic grouping key safe.</p>
+
+<h3 id="recommended-approach">Recommended approach</h3>
+
+<p>Use a stable field from the input data, or derive the key from stable fields:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">result</span> <span class="k">=</span> <span class="n">df</span>
+  <span class="o">.</span><span class="py">groupBy</span><span class="o">(</span><span class="n">$</span><span class="s">"user_id"</span><span class="o">)</span>
+  <span class="o">.</span><span class="py">count</span><span class="o">()</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">result</span> <span class="o">=</span> <span class="n">df</span><span class="p">.</span><span class="nf">groupBy</span><span class="p">(</span><span class="sh">"</span><span class="s">user_id</span><span class="sh">"</span><span class="p">).</span><span class="nf">count</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>If a random value is truly required, generate it once and persist the result before using it in a later <code class="language-plaintext highlighter-rouge">groupBy</code>, join,
+or deduplication step. Do not put a random function, the current time, or mutable external state directly into the
+grouping key.</p>
+
+<p>In short: <strong>Spark can recompute a failed task, but it cannot reproduce a non-deterministic key.</strong></p>]]></content><author><name>Huijie Qu</name></author><category term="blog" /><category term="Spark" /><category term="Distributed Systems" /><summary type="html"><![CDATA[When using groupBy in Spark, the grouping key must be deterministic. For the same input record, evaluating the key again on another executor should produce the same value.]]></summary></entry></feed>

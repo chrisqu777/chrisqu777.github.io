@@ -1,0 +1,8 @@
+# main links
+main:
+  - title: "Home"
+    url: /
+  - title: "Resume"
+    url: /resume/
+  - title: "Contributions"
+    url: /contributions/

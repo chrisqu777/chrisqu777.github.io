@@ -1,0 +1,60 @@
+---
+# Only the main Sass file needs front matter
+search: false
+---
+
+@charset "utf-8";
+
+$right-sidebar-width-narrow: 240px;
+$right-sidebar-width: 300px;
+$right-sidebar-width-wide: 400px;
+$max-width: 1400px;
+
+@import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}";
+@import "minimal-mistakes";
+
+.github-prs__status {
+  color: $muted-text-color;
+  font-size: 0.85em;
+}
+
+.github-prs__item {
+  padding: 1rem 0;
+  border-top: 1px solid $border-color;
+}
+
+.github-prs__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  color: $muted-text-color;
+  font-size: 0.75em;
+}
+
+.github-prs__title {
+  margin: 0.35rem 0 0;
+  font-size: 1.05em;
+}
+
+.github-prs__state {
+  font-weight: 700;
+}
+
+.github-prs__state--open {
+  color: #1a7f37;
+}
+
+.github-prs__state--merged {
+  color: #8250df;
+}
+
+.github-prs__state--closed {
+  color: #cf222e;
+}
+
+@media (max-width: 600px) {
+  .github-prs__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
